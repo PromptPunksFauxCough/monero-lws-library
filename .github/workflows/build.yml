@@ -1,0 +1,100 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 600
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config autoconf libtool ccache cmake python-is-python3
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;28.2.13676358'
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-linux-android, aarch64-linux-android, armv7-linux-androideabi
+
+      - name: Build and collect libraries
+        env:
+          CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER: "/usr/local/lib/android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android28-clang"
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: "/usr/local/lib/android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
+          CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER: "/usr/local/lib/android/sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi28-clang"
+        run: |
+          mkdir -p library/src/main/jniLibs/armeabi-v7a
+          mkdir -p library/src/main/jniLibs/arm64-v8a
+          mkdir -p library/src/main/jniLibs/x86_64
+
+          cd lws-client-rs
+          cargo build --release --target aarch64-linux-android
+          mv target/aarch64-linux-android/release/liblws_client_rs.so ../library/src/main/jniLibs/arm64-v8a
+          cargo build --release --target armv7-linux-androideabi
+          mv target/armv7-linux-androideabi/release/liblws_client_rs.so ../library/src/main/jniLibs/armeabi-v7a
+          cargo build --release --target x86_64-linux-android
+          mv target/x86_64-linux-android/release/liblws_client_rs.so ../library/src/main/jniLibs/x86_64
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: liberica
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build AAR
+        run: |
+          cd library
+          gradle assembleRelease
+
+      - name: Build Example APK
+        run: |
+          cd example/gui
+          gradle assembleDebug
+
+      - name: Delete existing latest release
+        uses: dev-drprasad/delete-tag-and-release@v1.0
+        with:
+          tag_name: latest
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          delete_release: true
+        continue-on-error: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: Latest Build
+          files: |
+            library/build/outputs/aar/*.aar
+            example/gui/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
