@@ -187,3 +187,36 @@ Running `monerod` with ZMQ enabled:
 ```
 
 Add `--exchange-rate-interval <value>` to enable fiat conversion (now returns: 401 "API key required").
+
+### Demo
+https://github.com/PromptPunksFauxCough/monero-lws-library/releases/download/latest/monero-lws-library-proof.mp4
+
+00:00-00:55 | LWS Server config (NON-feed)
+
+01:05-02:00 | Example GUI login/wallet creation/subaddress
+
+02:15-02:30 | Faucet transaction #1
+
+02:45-06:45 | Waiting for +first confirmation of faucet transaction #1
+
+07:50-08:15 | LWS Server config (Enable feed)
+
+08:30-08:45 | Example GUI open existing wallet (Feed indicator)
+
+08:50-09:00 | Example GUI subaddress
+
+09:00-09:45 | Faucet transaction #2
+
+09:50-09:51 | Example GUI mempool transaction
+
+10:00-19:33 | Waiting for +first confirmation of faucet transaction #2
+
+24:00-25:45 | Restore account (from height)
+
+34:20-34:30 | Faucet transaction #1 funds become spendable
+
+36:00-36:05 | Faucet transaction #2 funds become spendable
+
+36-20-36:50 | Send all via max (mempool transaction)
+
+46:44-47:50 | Send transaction receives first confirmation
